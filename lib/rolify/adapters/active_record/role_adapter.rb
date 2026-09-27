@@ -48,7 +48,14 @@ module Rolify
       end
 
       def find_or_create_by(role_name, resource_type = nil, resource_id = nil)
-        role_class.where(:name => role_name, :resource_type => resource_type, :resource_id => resource_id).first_or_create
+        attributes = { :name => role_name, :resource_type => resource_type, :resource_id => resource_id }
+
+        # `first_or_create` SELECTs and then INSERTs, so two processes adding
+        # the same role at the same time can both get past the SELECT and
+        # insert it twice. `create_or_find_by` wraps the insert in a savepoint
+        # and, when the unique index on (name, resource_type, resource_id)
+        # rejects the duplicate, returns the row that won the race.
+        role_class.where(attributes).first || role_class.create_or_find_by(attributes)
       end
 
       def add(relation, role)
@@ -63,7 +70,9 @@ module Rolify
         if roles
           relation.roles.delete(roles)
           roles.each do |role|
-            role.destroy if role.send(ActiveSupport::Inflector.demodulize(user_class).tableize.to_sym).limit(1).empty?
+            # `public_send`: the association reader is public, and there is no
+            # reason for a name derived from a class name to reach any further.
+            role.destroy if role.public_send(user_association_name).limit(1).empty?
           end if Rolify.remove_role_if_empty
         end
         roles
@@ -84,6 +93,12 @@ module Rolify
       end
 
       private
+
+      # The name of the association the Role class uses to point back at the
+      # user class, e.g. "users" for User or "moderators" for Admin::Moderator.
+      def user_association_name
+        ActiveSupport::Inflector.demodulize(user_class).tableize.to_sym
+      end
 
       def build_conditions(relation, args)
         conditions = []

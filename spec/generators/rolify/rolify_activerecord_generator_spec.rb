@@ -107,6 +107,29 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
 
         it { expect(subject).not_to contain('add_index(:roles, :name)') }
       end
+
+      it { should contain 'add_index(:roles, [ :name, :resource_type, :resource_id ], :unique => true)' }
+      it { should contain 'add_index(:users_roles, [ :user_id, :role_id ], :unique => true)' }
+    end
+  end
+
+  describe 'specifying the orm explicitly' do
+    before(:all) { arguments %w(Role User --orm=active_record) }
+
+    before {
+      allow(ActiveRecord::Base).to receive_message_chain(
+        'connection.class.to_s.demodulize') { adapter }
+      capture(:stdout) {
+        generator.create_file "app/models/user.rb" do
+          "class User < ActiveRecord::Base\nend"
+        end
+      }
+      require File.join(destination_root, "app/models/user.rb")
+      run_generator %w(--skip-collision-check)
+    }
+
+    it 'injects the rolify call into the user model' do
+      expect(file('app/models/user.rb')).to contain /class User < ActiveRecord::Base\n  rolify\n/
     end
   end
 
