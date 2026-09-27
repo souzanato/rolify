@@ -9,7 +9,6 @@ gem "activemodel", "~> 7.2.0"
 gem "railties", "~> 7.2.0"
 
 group :test do
-  gem "database_cleaner-active_record", "~> 2.2"
   gem "simplecov", require: false
   gem "test-unit"
   gem "byebug"

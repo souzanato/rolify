@@ -21,6 +21,14 @@ end
 # against the current Mongoid release, but it is not part of the required
 # compatibility matrix. Mongoid < 8 is not installable on Ruby >= 3.2 because
 # of its bson_ext dependency, so those appraisals have been dropped.
+#
+# ActiveRecord has to be removed explicitly, otherwise rspec-rails wires its
+# fixture support into every example group and the generator specs fail with
+# ActiveRecord::ConnectionNotDefined: no database connection is established on
+# a Mongoid run.
 appraise 'mongoid-9' do
   gem "mongoid", "~> 9.1"
+
+  remove_gem "activerecord"
+  remove_gem "sqlite3"
 end

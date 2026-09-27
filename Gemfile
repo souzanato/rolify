@@ -12,7 +12,6 @@ gem "railties", "~> 8.1"
 gemspec
 
 group :test do
-  gem 'database_cleaner-active_record', '~> 2.2'
   gem 'simplecov', require: false
   gem 'test-unit' # Implicitly loaded by ammeter
 

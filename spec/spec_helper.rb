@@ -7,7 +7,6 @@ require 'rolify'
 require 'rolify/matchers'
 require "logger"
 require 'rails'
-require 'database_cleaner/active_record'
 
 ENV['ADAPTER'] ||= 'active_record'
 
@@ -42,14 +41,4 @@ end
 
 RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = [:should, :expect] }
-
-  config.before(:suite) do
-    DatabaseCleaner.strategy = :truncation
-    DatabaseCleaner.start
-  end
-
-  config.after(:suite) do |example|
-    DatabaseCleaner.clean
-  end
-
 end
