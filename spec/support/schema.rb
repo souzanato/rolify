@@ -3,6 +3,9 @@ ActiveRecord::Schema.define do
 
   # Mirrors what the ActiveRecord migration generator produces, unique indexes
   # included, so that the suite exercises the same constraints a real app gets.
+  # One partial unique index per scope level; a single index over all three
+  # columns cannot enforce the global and class scoped levels, because NULLs
+  # compare as distinct.
   [ :roles, :privileges, :admin_rights ].each do |table|
     create_table(table) do |t|
     t.string :name
@@ -11,7 +14,16 @@ ActiveRecord::Schema.define do
     t.timestamps null: false
     end
 
-    add_index(table, [ :name, :resource_type, :resource_id ], :unique => true)
+    add_index(table, :name)
+    add_index(table, [ :name ], :unique => true,
+              :where => "resource_type IS NULL AND resource_id IS NULL",
+              :name => "index_#{table}_global")
+    add_index(table, [ :name, :resource_type ], :unique => true,
+              :where => "resource_type IS NOT NULL AND resource_id IS NULL",
+              :name => "index_#{table}_class_scoped")
+    add_index(table, [ :name, :resource_type, :resource_id ], :unique => true,
+              :where => "resource_id IS NOT NULL",
+              :name => "index_#{table}_instance_scoped")
   end
 
   [ :users, :human_resources, :customers, :admin_moderators, :strict_users ].each do |table|

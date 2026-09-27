@@ -53,8 +53,8 @@ module Rolify
         # `first_or_create` SELECTs and then INSERTs, so two processes adding
         # the same role at the same time can both get past the SELECT and
         # insert it twice. `create_or_find_by` wraps the insert in a savepoint
-        # and, when the unique index on (name, resource_type, resource_id)
-        # rejects the duplicate, returns the row that won the race.
+        # and, when the partial unique index for this scope level rejects the
+        # duplicate, returns the row that won the race.
         role_class.where(attributes).first || role_class.create_or_find_by(attributes)
       end
 
