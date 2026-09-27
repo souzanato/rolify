@@ -16,8 +16,8 @@ shared_examples_for "Rolify.callbacks" do
         rolify_options[:role_join_table_name] = join_table if defined? join_table
         silence_warnings { user_class.rolify rolify_options }
         @user = user_class.first
-        @user.stub(:role_callback)
-        @user.should_receive(:role_callback)
+        allow(@user).to receive(:role_callback)
+        expect(@user).to receive(:role_callback)
         @user.add_role :admin
       end
     end
@@ -28,8 +28,8 @@ shared_examples_for "Rolify.callbacks" do
         rolify_options[:role_join_table_name] = join_table if defined? join_table
         silence_warnings { user_class.rolify rolify_options }
         @user = user_class.first
-        @user.stub(:role_callback)
-        @user.should_receive(:role_callback)
+        allow(@user).to receive(:role_callback)
+        expect(@user).to receive(:role_callback)
         @user.add_role :admin
       end
     end
@@ -41,9 +41,9 @@ shared_examples_for "Rolify.callbacks" do
         silence_warnings { user_class.rolify rolify_options }
         @user = user_class.first
         @user.add_role :admin
-        @user.stub(:role_callback)
+        allow(@user).to receive(:role_callback)
 
-        @user.should_receive(:role_callback)
+        expect(@user).to receive(:role_callback)
         @user.remove_role :admin
       end
     end
@@ -55,9 +55,9 @@ shared_examples_for "Rolify.callbacks" do
         silence_warnings { user_class.rolify rolify_options }
         @user = user_class.first
         @user.add_role :admin
-        @user.stub(:role_callback)
+        allow(@user).to receive(:role_callback)
 
-        @user.should_receive(:role_callback)
+        expect(@user).to receive(:role_callback)
         @user.remove_role :admin
       end
     end

@@ -1,11 +1,8 @@
 require 'bundler'
 require 'rspec/core/rake_task'
-require 'coveralls/rake/task'
 require 'appraisal'
 
 Bundler::GemHelper.install_tasks
-
-Coveralls::RakeTask.new
 
 RSpec::Core::RakeTask.new(:generators) do |task|
   task.pattern = 'spec/generators/**/*_spec.rb'
@@ -18,7 +15,7 @@ end
 if !ENV["APPRAISAL_INITIALIZED"] && !ENV["CI"]
   task :default => :appraisal
 else
-  task :default => [ :spec, 'coveralls:push' ]
+  task :default => :spec
 end
 
 desc 'Run all specs'

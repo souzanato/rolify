@@ -21,16 +21,24 @@ Gem::Specification.new do |s|
     'wellington@wellingtoncordeiro.com'
   ]
 
+  s.metadata = {
+    'bug_tracker_uri'       => 'https://github.com/RolifyCommunity/rolify/issues',
+    'changelog_uri'         => 'https://github.com/RolifyCommunity/rolify/blob/master/CHANGELOG.rdoc',
+    'source_code_uri'       => 'https://github.com/RolifyCommunity/rolify',
+    'rubygems_mfa_required' => 'true'
+  }
+
   s.files         = `git ls-files`.split("\n")
-  s.test_files    = `git ls-files -- spec/*`.split("\n")
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ['lib']
 
-  s.required_ruby_version = '>= 2.5'
+  # ActiveRecord 8.x requires Ruby >= 3.2, which is also the oldest Ruby this
+  # gem is tested against. See README for the full support matrix.
+  s.required_ruby_version = '>= 3.2'
 
   s.add_development_dependency 'ammeter',     '~> 1.1' # Spec generator
-  s.add_development_dependency 'appraisal',   '~> 2.0'
-  s.add_development_dependency 'bundler',     '~> 2.0' # packaging feature
-  s.add_development_dependency 'rake',        '~> 12.3' # Tasks manager
-  s.add_development_dependency 'rspec-rails', '~> 3.8'
+  s.add_development_dependency 'appraisal',   '~> 2.5'
+  s.add_development_dependency 'bundler',     '>= 2.4' # packaging feature
+  s.add_development_dependency 'rake',        '~> 13.0'
+  s.add_development_dependency 'rspec-rails', '>= 6.1'
 end

@@ -1,18 +1,13 @@
-require 'coveralls'
-Coveralls.wear_merged!
-
 require 'rubygems'
 require "bundler/setup"
+
+require_relative 'support/coverage'
 
 require 'rolify'
 require 'rolify/matchers'
 require "logger"
 require 'rails'
-begin
-  require 'its'
-rescue LoadError
-end
-require 'database_cleaner'
+require 'database_cleaner/active_record'
 
 ENV['ADAPTER'] ||= 'active_record'
 
