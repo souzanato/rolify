@@ -36,9 +36,10 @@ Gem::Specification.new do |s|
   # gem is tested against. See README for the full support matrix.
   s.required_ruby_version = '>= 3.2'
 
-  s.add_development_dependency 'ammeter',     '~> 1.1' # Spec generator
-  s.add_development_dependency 'appraisal',   '~> 2.5'
-  s.add_development_dependency 'bundler',     '>= 2.4' # packaging feature
-  s.add_development_dependency 'rake',        '~> 13.0'
-  s.add_development_dependency 'rspec-rails', '>= 6.1'
+  s.add_development_dependency 'ammeter',       '~> 1.1' # Spec generator
+  s.add_development_dependency 'appraisal',     '~> 2.5'
+  s.add_development_dependency 'bundler',       '>= 2.4' # packaging feature
+  s.add_development_dependency 'bundler-audit', '~> 0.9' # dependency security
+  s.add_development_dependency 'rake',          '~> 13.0'
+  s.add_development_dependency 'rspec-rails',   '>= 6.1'
 end

@@ -1,29 +1,33 @@
 name: mongoid
+
 on: [push, pull_request]
+
+# Mongoid support is best effort: it is exercised against the current release
+# so that regressions are visible, but ActiveRecord is the supported default
+# and the compatibility matrix only covers it.
 jobs:
-  ubuntu:
+  test:
+    name: ruby 3.4 / mongoid_9
     runs-on: ubuntu-latest
-    continue-on-error: true
+    env:
+      BUNDLE_GEMFILE: gemfiles/mongoid_9.gemfile
+      ADAPTER: mongoid
     services:
       mongodb:
-        image: mongo:3.4.23
+        image: mongo:7
         ports:
           - 27017:27017
-    strategy:
-      matrix:
-        gemfile: [mongoid_5]
-        ruby: [2.7.7]
-    env:
-      BUNDLE_GEMFILE: gemfiles/${{ matrix.gemfile }}.gemfile
-      ADAPTER: mongoid
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping: 1}).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - uses: actions/checkout@v3
-      - run: sudo apt-get install -y libsqlite3-dev
-      - name: Setup ruby
+      - uses: actions/checkout@v7
+      - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ${{ matrix.ruby }}
+          ruby-version: "3.4"
           bundler-cache: true
-      - name: Run Tests
-        run: |
-          bundle exec rake
+      - name: Run specs
+        run: bundle exec rake

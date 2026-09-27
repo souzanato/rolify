@@ -1,0 +1,23 @@
+name: security
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so that advisories published against unchanged dependencies are
+    # still picked up.
+    - cron: "23 6 * * 1"
+
+jobs:
+  bundler-audit:
+    name: bundler-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      - name: Check dependencies for known advisories
+        run: bundle exec bundler-audit check --update
