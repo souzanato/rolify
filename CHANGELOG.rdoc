@@ -23,18 +23,27 @@ Breaking changes:
 
 Data integrity:
 
-* The ActiveRecord migration generator now creates a unique index on
-  <tt>roles(name, resource_type, resource_id)</tt>, matching the index the
-  Mongoid generator has always created, plus a unique index on the join table's
-  <tt>(user_id, role_id)</tt>. Duplicate roles are now rejected by the database
-  rather than relying on the guards in <tt>add_role</tt>.
-* Roles scoped to a class or an instance are covered by the index. Global roles
-  are not, because databases treat NULLs as distinct in a unique index; the
-  generated migration says so.
+* The ActiveRecord migration generator now creates one partial unique index per
+  scope level - <tt>UNIQUE(name)</tt> for global roles,
+  <tt>UNIQUE(name, resource_type)</tt> for class scoped roles, and
+  <tt>UNIQUE(name, resource_type, resource_id)</tt> for instance scoped roles -
+  plus a unique index on the join table's <tt>(user_id, role_id)</tt>. Duplicate
+  roles are rejected by the database rather than relying on the guards in
+  <tt>add_role</tt>, at every level.
+* The previous single index over all three columns covered only instance scoped
+  roles: a database treats NULLs as distinct in a unique index, so two
+  concurrent creations of the same global or class scoped role could both
+  succeed. See UPGRADE.rdoc, which explains how to find pre-existing duplicates
+  before adding the new indexes.
+* PostgreSQL and SQLite support partial indexes. On adapters that do not
+  (MySQL, MariaDB) the generator keeps the single composite index, which covers
+  instance scoped roles only; those adapters cannot enforce the other two levels
+  in the database.
 * <tt>find_or_create_by</tt> used <tt>first_or_create</tt>, which SELECTs and then
   INSERTs and so loses the race when two processes add the same role at the same
   time. It now falls back to <tt>create_or_find_by</tt>, which inserts inside a
-  savepoint and returns the row that won.
+  savepoint and returns the row that won. This works with the partial indexes:
+  the attributes passed to it always name exactly one scope level.
 
 Security:
 
