@@ -1,5 +1,38 @@
 = Upgrade instructions for Rolify library
 
+== From rolify 6.x to 7.x
+
+=== Requirements
+
+Rolify 7 requires Ruby 3.2 or newer, and ActiveRecord 7.1 or newer (or
+Mongoid 9). No public API changed, so an application that already runs on those
+versions needs no code change.
+
+=== Adding the unique indexes (ActiveRecord)
+
+The migration generator now creates a unique index on
+<tt>roles(name, resource_type, resource_id)</tt> and on the join table's
+<tt>(user_id, role_id)</tt>. Existing installations already have non-unique
+indexes with those names, so the new migration has to replace them. There is no
+generator for this; add a migration to your application:
+
+    class AddRoleUniqueness < ActiveRecord::Migration[8.1]
+      def change
+        # Remove any duplicates first, otherwise the unique index cannot be
+        # created. The unique index does not cover global roles, because
+        # databases treat NULLs as distinct.
+        remove_index :roles, [ :name, :resource_type, :resource_id ]
+        add_index :roles, [ :name, :resource_type, :resource_id ], :unique => true
+
+        remove_index :users_roles, [ :user_id, :role_id ]
+        add_index :users_roles, [ :user_id, :role_id ], :unique => true
+      end
+    end
+
+Adjust the table and column names if you use a custom role class or join table.
+Role scoping is unaffected: a role scoped to a different resource is still a
+different row.
+
 == From a previous rolify installation (1.x or 2.x)
 
 The easiest way is to re-run the generator using <tt>rails g Rolify:Role</tt> command, and overwrite the initializer file. Both the migration file and the <tt>role.rb</tt> haven't changed.
