@@ -40,7 +40,10 @@ module Rolify
       end
 
       def all_except(resource, excluded_obj)
-        resource.not_in(_id: excluded_obj.to_a)
+        # `excluded_obj` holds the resource documents that do have the role, so
+        # map them to their ids: Mongoid no longer coerces documents passed to
+        # `not_in` into their `_id`.
+        resource.not_in(_id: excluded_obj.map(&:_id))
       end
 
     end

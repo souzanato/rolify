@@ -8,7 +8,7 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
   destination File.expand_path("../../../../tmp", __FILE__)
   teardown :cleanup_destination_root
 
-  let(:adapter) { 'SQLite3Adapter' }
+  let(:supports_partial_indexes) { true }
   before {
     prepare_destination
   }
@@ -17,12 +17,27 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
     FileUtils.rm_rf destination_root
   end
 
+  # Runs a generated migration against the in-memory database and returns the
+  # indexes of each table it touched. Executing the file is a stronger check
+  # than matching its text: it proves the migration runs and that the database
+  # ends up with the constraints the file claims to create.
+  def run_generated_migration(path, *tables)
+    tables.each { |table| ActiveRecord::Base.connection.drop_table(table, :if_exists => true) }
+    load path.to_s
+    name = File.basename(path.to_s).sub(/\A\d+_/, "").sub(/\.rb\z/, "").camelize
+    capture(:stdout) { Object.const_get(name).new.migrate(:up) }
+    tables.flat_map do |table|
+      ActiveRecord::Base.connection.indexes(table).map do |index|
+        [ table, index.columns, index.unique, index.where ]
+      end
+    end
+  end
+
   describe 'specifying only Role class name' do
     before(:all) { arguments %w(Role) }
 
     before {
-      allow(ActiveRecord::Base).to receive_message_chain(
-        'connection.class.to_s.demodulize') { adapter }
+      allow(ActiveRecord::Base.connection).to receive(:supports_partial_index?).and_return(supports_partial_indexes)
       capture(:stdout) {
         generator.create_file "app/models/user.rb" do
           <<-RUBY
@@ -89,24 +104,66 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
       it { should be_a_migration }
       it { should contain "create_table(:roles) do" }
       it { should contain "create_table(:users_roles, :id => false) do" }
+      it { should contain 'add_index(:roles, :name)' }
+      it { should contain 'add_index(:users_roles, [ :user_id, :role_id ], :unique => true)' }
 
-      context 'mysql2' do
-        let(:adapter) { 'Mysql2Adapter' }
+      context 'an adapter with partial indexes' do
+        it 'declares one unique index per scope level' do
+          expect(subject).to contain(':name => "index_roles_global"')
+          expect(subject).to contain(':name => "index_roles_class_scoped"')
+          expect(subject).to contain(':name => "index_roles_instance_scoped"')
 
-        it { expect(subject).to contain('add_index(:roles, :name)') }
+          expect(subject).to contain('resource_type IS NULL AND resource_id IS NULL')
+          expect(subject).to contain('resource_type IS NOT NULL AND resource_id IS NULL')
+          expect(subject).to contain('resource_id IS NOT NULL')
+        end
+
+        it 'enforces one unique index per scope level once migrated' do
+          indexes = run_generated_migration(subject, :roles, :users_roles)
+
+          expect(indexes).to include(
+            [ :roles, [ 'name' ], true, 'resource_type IS NULL AND resource_id IS NULL' ],
+            [ :roles, [ 'name', 'resource_type' ], true, 'resource_type IS NOT NULL AND resource_id IS NULL' ],
+            [ :roles, [ 'name', 'resource_type', 'resource_id' ], true, 'resource_id IS NOT NULL' ],
+            [ :users_roles, [ 'user_id', 'role_id' ], true, nil ]
+          )
+        end
       end
 
-      context 'sqlite3' do
-        let(:adapter) { 'SQLite3Adapter' }
+      context 'an adapter without partial indexes' do
+        let(:supports_partial_indexes) { false }
 
-        it { expect(subject).to contain('add_index(:roles, :name)') }
+        it 'falls back to the composite unique index' do
+          expect(subject).to contain('add_index(:roles, [ :name, :resource_type, :resource_id ], :unique => true)')
+          expect(subject).not_to contain(':where =>')
+        end
+
+        it 'creates only that composite index once migrated' do
+          indexes = run_generated_migration(subject, :roles, :users_roles)
+
+          expect(indexes).to include([ :roles, [ 'name', 'resource_type', 'resource_id' ], true, nil ])
+          expect(indexes.select { |table, _, unique, where| table == :roles && unique && where }.size).to eq(0)
+        end
       end
+    end
+  end
 
-      context 'pg' do
-        let(:adapter) { 'PostgreSQLAdapter' }
+  describe 'specifying the orm explicitly' do
+    before(:all) { arguments %w(Role User --orm=active_record) }
 
-        it { expect(subject).not_to contain('add_index(:roles, :name)') }
-      end
+    before {
+      allow(ActiveRecord::Base.connection).to receive(:supports_partial_index?).and_return(supports_partial_indexes)
+      capture(:stdout) {
+        generator.create_file "app/models/user.rb" do
+          "class User < ActiveRecord::Base\nend"
+        end
+      }
+      require File.join(destination_root, "app/models/user.rb")
+      run_generator %w(--skip-collision-check)
+    }
+
+    it 'injects the rolify call into the user model' do
+      expect(file('app/models/user.rb')).to contain /class User < ActiveRecord::Base\n  rolify\n/
     end
   end
 
@@ -114,8 +171,7 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
     before(:all) { arguments %w(AdminRole AdminUser) }
 
     before {
-      allow(ActiveRecord::Base).to receive_message_chain(
-        'connection.class.to_s.demodulize') { adapter }
+      allow(ActiveRecord::Base.connection).to receive(:supports_partial_index?).and_return(supports_partial_indexes)
       capture(:stdout) {
         generator.create_file "app/models/admin_user.rb" do
           "class AdminUser < ActiveRecord::Base\nend"
@@ -165,22 +221,21 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
       it { should contain "create_table(:admin_roles)" }
       it { should contain "create_table(:admin_users_admin_roles, :id => false) do" }
 
-      context 'mysql2' do
-        let(:adapter) { 'Mysql2Adapter' }
-
-        it { expect(subject).to contain('add_index(:admin_roles, :name)') }
+      context 'an adapter with partial indexes' do
+        it 'names the scope indexes after the role table' do
+          expect(subject).to contain(':name => "index_admin_roles_global"')
+          expect(subject).to contain(':name => "index_admin_roles_class_scoped"')
+          expect(subject).to contain(':name => "index_admin_roles_instance_scoped"')
+        end
       end
 
-      context 'sqlite3' do
-        let(:adapter) { 'SQLite3Adapter' }
+      context 'an adapter without partial indexes' do
+        let(:supports_partial_indexes) { false }
 
-        it { expect(subject).to contain('add_index(:admin_roles, :name)') }
-      end
-
-      context 'pg' do
-        let(:adapter) { 'PostgreSQLAdapter' }
-
-        it { expect(subject).not_to contain('add_index(:admin_roles, :name)') }
+        it 'falls back to the composite unique index' do
+          expect(subject).to contain('add_index(:admin_roles, [ :name, :resource_type, :resource_id ], :unique => true)')
+          expect(subject).not_to contain(':where =>')
+        end
       end
     end
   end
@@ -189,8 +244,7 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
     before(:all) { arguments %w(Admin::Role Admin::User) }
 
     before {
-      allow(ActiveRecord::Base).to receive_message_chain(
-        'connection.class.to_s.demodulize') { adapter }
+      allow(ActiveRecord::Base.connection).to receive(:supports_partial_index?).and_return(supports_partial_indexes)
       capture(:stdout) {
         generator.create_file "app/models/admin/user.rb" do
           <<-RUBY
@@ -253,22 +307,21 @@ describe Rolify::Generators::RolifyGenerator, :if => ENV['ADAPTER'] == 'active_r
         end
       end
 
-      context 'mysql2' do
-        let(:adapter) { 'Mysql2Adapter' }
-
-        it { expect(subject).to contain('add_index(:admin_roles, :name)') }
+      context 'an adapter with partial indexes' do
+        it 'names the scope indexes after the namespaced role table' do
+          expect(subject).to contain(':name => "index_admin_roles_global"')
+          expect(subject).to contain(':name => "index_admin_roles_class_scoped"')
+          expect(subject).to contain(':name => "index_admin_roles_instance_scoped"')
+        end
       end
 
-      context 'sqlite3' do
-        let(:adapter) { 'SQLite3Adapter' }
+      context 'an adapter without partial indexes' do
+        let(:supports_partial_indexes) { false }
 
-        it { expect(subject).to contain('add_index(:admin_roles, :name)') }
-      end
-
-      context 'pg' do
-        let(:adapter) { 'PostgreSQLAdapter' }
-
-        it { expect(subject).not_to contain('add_index(:admin_roles, :name)') }
+        it 'falls back to the composite unique index' do
+          expect(subject).to contain('add_index(:admin_roles, [ :name, :resource_type, :resource_id ], :unique => true)')
+          expect(subject).not_to contain(':where =>')
+        end
       end
     end
   end

@@ -485,15 +485,15 @@ describe Rolify::Resource do
     it { should respond_to :roles }
 
     context "on a Forum instance" do
-      its(:roles) { should match_array( [ forum_role, sneaky_role ]) }
-      its(:roles) { should_not include(group_role, godfather_role, tourist_role) }
+      it { expect(subject.roles).to match_array( [ forum_role, sneaky_role ]) }
+      it { expect(subject.roles).to_not include(group_role, godfather_role, tourist_role) }
     end
 
     context "on a Group instance" do
       subject { Group.last }
 
-      its(:roles) { should eq([ group_role ]) }
-      its(:roles) { should_not include(forum_role, godfather_role, sneaky_role, tourist_role) }
+      it { expect(subject.roles).to eq([ group_role ]) }
+      it { expect(subject.roles).to_not include(forum_role, godfather_role, sneaky_role, tourist_role) }
 
       context "when deleting a Group instance" do
         subject do
@@ -516,15 +516,15 @@ describe Rolify::Resource do
     context "on a Forum instance" do
       subject { Forum.first }
 
-      its(:applied_roles) { should =~ [ forum_role, godfather_role, sneaky_role ] }
-      its(:applied_roles) { should_not include(group_role, tourist_role) }
+      it { expect(subject.applied_roles).to match_array [ forum_role, godfather_role, sneaky_role ] }
+      it { expect(subject.applied_roles).to_not include(group_role, tourist_role) }
     end
 
     context "on a Group instance" do
       subject { Group.last }
 
-      its(:applied_roles) { should =~ [ group_role ] }
-      its(:applied_roles) { should_not include(forum_role, godfather_role, sneaky_role, tourist_role) }
+      it { expect(subject.applied_roles).to match_array [ group_role ] }
+      it { expect(subject.applied_roles).to_not include(forum_role, godfather_role, sneaky_role, tourist_role) }
     end
   end
 

@@ -90,23 +90,53 @@ module Rolify
     end
 
     def method_missing(method, *args, &block)
-      if method.to_s.match(/^is_(\w+)_of[?]$/) || method.to_s.match(/^is_(\w+)[?]$/)
+      if Rolify.dynamic_shortcuts && (role_name = dynamic_role_name(method))
         resource = args.first
-        self.class.define_dynamic_method $1, resource
-        return has_role?("#{$1}", resource)
-      end if Rolify.dynamic_shortcuts
+        self.class.define_dynamic_method role_name, resource
+        return has_role?(role_name, resource)
+      end
       super
     end
 
+    def respond_to_missing?(method, include_private = false)
+      return super unless Rolify.dynamic_shortcuts
+      return super unless dynamic_role_name(method)
+
+      dynamic_role_available?(method)
+    end
+
     def respond_to?(method, include_private = false)
-      if Rolify.dynamic_shortcuts && (method.to_s.match(/^is_(\w+)_of[?]$/) || method.to_s.match(/^is_(\w+)[?]$/))
-        query = self.class.role_class.where(:name => $1)
-        query = self.class.adapter.exists?(query, :resource_type) if method.to_s.match(/^is_(\w+)_of[?]$/)
-        return true if query.count > 0
-        false
+      if Rolify.dynamic_shortcuts && dynamic_role_name(method)
+        # Deliberately not delegating to `respond_to_missing?`: a shortcut that
+        # was already defined stays defined after its last role is removed, and
+        # must keep answering false.
+        dynamic_role_available?(method)
       else
         super
       end
+    end
+
+    private
+
+    # `is_<role>_of?` is tested first: `\w` would otherwise swallow the `_of`
+    # suffix into the role name.
+    DYNAMIC_ROLE_OF_METHOD = /\Ais_(\w+)_of\?\z/
+    DYNAMIC_ROLE_METHOD    = /\Ais_(\w+)\?\z/
+
+    def dynamic_role_name(method)
+      name = method.to_s
+      match = DYNAMIC_ROLE_OF_METHOD.match(name) || DYNAMIC_ROLE_METHOD.match(name)
+      match && match[1]
+    end
+
+    def dynamic_role_of_method?(method)
+      DYNAMIC_ROLE_OF_METHOD.match?(method.to_s)
+    end
+
+    def dynamic_role_available?(method)
+      query = self.class.role_class.where(:name => dynamic_role_name(method))
+      query = self.class.adapter.exists?(query, :resource_type) if dynamic_role_of_method?(method)
+      query.count > 0
     end
   end
 end

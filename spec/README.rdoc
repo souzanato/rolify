@@ -2,10 +2,18 @@
 
 == Running the specs
 
-To run the specs first run the +bundle+ command to install the necessary gems and the +rake+ command to run the specs.
+Install the gems and run the specs against the default ActiveRecord version:
 
   bundle
   rake
+
+The Appraisals matrix exercises every supported ActiveRecord release. It lives
+in the +Appraisals+ file, and the gemfiles under +gemfiles/+ are generated from
+it.
+
+  bundle exec appraisal list
+  bundle exec rake appraisal                   # runs the default task for each appraisal
+  bundle exec appraisal activerecord-8.1 rake  # or a single one
 
 == Model Adapters
 
@@ -13,6 +21,10 @@ Rolify currently supports 2 different ORMs: ActiveRecord and Mongoid. By default
 
   ADAPTER=mongoid bundle
   ADAPTER=mongoid rake
+
+The Mongoid suite needs a MongoDB server listening on +localhost:27017+:
+
+  ADAPTER=mongoid BUNDLE_GEMFILE=gemfiles/mongoid_9.gemfile bundle exec rake
 
 The different model adapters you can specify are:
 

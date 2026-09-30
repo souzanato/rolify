@@ -31,7 +31,7 @@ module Mongoid
       def model_contents
         content = <<RUBY
   has_and_belongs_to_many :%{user_cname}
-  belongs_to :resource, :polymorphic => true
+  belongs_to :resource, :polymorphic => true, :optional => true
 
   field :name, :type => String
 

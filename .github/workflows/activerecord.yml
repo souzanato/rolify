@@ -1,33 +1,52 @@
 name: activerecord
+
 on: [push, pull_request]
+
 jobs:
-  ubuntu:
+  test:
+    name: ruby ${{ matrix.ruby }} / ${{ matrix.gemfile }}
     runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      matrix:
-        gemfile: [activerecord_6]
-        ruby: [2.7.7]
-        include:
-          - gemfile: activerecord_7
-            ruby: "3.2"
-          - gemfile: activerecord_7
-            ruby: "3.1"
-          - gemfile: activerecord_7
-            ruby: "3.0"
-          - gemfile: activerecord_6
-            ruby: "3.0"
     env:
       BUNDLE_GEMFILE: gemfiles/${{ matrix.gemfile }}.gemfile
       ADAPTER: active_record
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every supported ActiveRecord release on the newest Ruby, and every
+        # supported Ruby on the newest ActiveRecord. Keep in sync with the
+        # appraisals in ../Appraisals.
+        include:
+          - { ruby: "3.4", gemfile: activerecord_7.1 }
+          - { ruby: "3.4", gemfile: activerecord_7.2 }
+          - { ruby: "3.4", gemfile: activerecord_8.0 }
+          - { ruby: "3.4", gemfile: activerecord_8.1 }
+          - { ruby: "3.3", gemfile: activerecord_8.1 }
+          - { ruby: "3.2", gemfile: activerecord_8.1 }
     steps:
-      - uses: actions/checkout@v3
-      - run: sudo apt-get install -y libsqlite3-dev
-      - name: Setup ruby
+      - uses: actions/checkout@v7
+      - name: Install SQLite headers
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Run Tests
-        run: |
-          bundle exec rake
+      - name: Run specs
+        run: bundle exec rake
+
+  gemfiles:
+    name: appraisals are up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      # The gemfiles are generated from Appraisals and are checked in. They had
+      # drifted before, with gemfiles for appraisals that no longer existed.
+      - name: Regenerate the appraisal gemfiles
+        run: bundle exec appraisal generate
+      - name: Check that they are unchanged
+        run: git diff --exit-code -- gemfiles/

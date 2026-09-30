@@ -48,7 +48,7 @@ RUBY
       it { should exist }
       it { should contain "class Role\n" }
       it { should contain "has_and_belongs_to_many :users\n" }
-      it { should contain "belongs_to :resource, :polymorphic => true" }
+      it { should contain "belongs_to :resource, :polymorphic => true, :optional => true" }
       it { should contain "field :name, :type => String" }
       it { should contain "  index({\n"
                           "      { :name => 1 },\n"
@@ -101,7 +101,7 @@ RUBY
       it { should exist }
       it { should contain "class Admin::Role" }
       it { should contain "has_and_belongs_to_many :admin_users" }
-      it { should contain "belongs_to :resource, :polymorphic => true" }
+      it { should contain "belongs_to :resource, :polymorphic => true, :optional => true" }
     end
 
     describe 'app/models/admin/user.rb' do

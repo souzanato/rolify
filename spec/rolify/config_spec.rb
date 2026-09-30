@@ -46,18 +46,18 @@ describe Rolify do
         end
         
         subject { ARUser }
-        
-        its("adapter.class") { should be(Rolify::Adapter::RoleAdapter) }
+
+        it { expect(subject.adapter).to be_a(Rolify::Adapter::RoleAdapter) }
       end
-      
+
       context "on the Forum class" do
         before do
           subject.resourcify
         end
-        
+
         subject { Forum }
-        
-        its("resource_adapter.class") { should be(Rolify::Adapter::ResourceAdapter) }
+
+        it { expect(subject.resource_adapter).to be_a(Rolify::Adapter::ResourceAdapter) }
       end
     end
 
@@ -77,8 +77,8 @@ describe Rolify do
           end
 
           subject { MUser }
-          
-          its("adapter.class") { should be(Rolify::Adapter::RoleAdapter) }
+
+          it { expect(subject.adapter).to be_a(Rolify::Adapter::RoleAdapter) }
         end
 
         context "on the Forum class" do
@@ -88,10 +88,10 @@ describe Rolify do
 
           subject { Forum }
 
-          its("resource_adapter.class") { should be(Rolify::Adapter::ResourceAdapter) }
+          it { expect(subject.resource_adapter).to be_a(Rolify::Adapter::ResourceAdapter) }
         end
       end
-      
+
       context "using :use_mongoid method" do
         before do
           Rolify.use_mongoid
@@ -107,8 +107,8 @@ describe Rolify do
           end
 
           subject { MUser }
-          
-          its("adapter.class") { should be(Rolify::Adapter::RoleAdapter) }
+
+          it { expect(subject.adapter).to be_a(Rolify::Adapter::RoleAdapter) }
         end
 
         context "on the Forum class" do
@@ -118,11 +118,11 @@ describe Rolify do
 
           subject { Forum }
 
-          its("resource_adapter.class") { should be(Rolify::Adapter::ResourceAdapter) }
+          it { expect(subject.resource_adapter).to be_a(Rolify::Adapter::ResourceAdapter) }
         end
       end
     end
-    
+
     describe :dynamic_shortcuts do
       context "using defaults values" do
         subject { Rolify.dynamic_shortcuts }
@@ -163,20 +163,20 @@ describe Rolify do
     end
 
     subject { Rolify }
-    
-    its(:dynamic_shortcuts) { should be_truthy }
-    its(:orm) { should eq("mongoid") }
-    
+
+    it { expect(subject.dynamic_shortcuts).to be_truthy }
+    it { expect(subject.orm).to eq("mongoid") }
+
     context "on the User class", :if => ENV['ADAPTER'] == 'mongoid' do
       before do
         MUser.rolify
       end
 
       subject { MUser }
-      
+
       it { should satisfy { |u| u.include? Rolify::Role }}
       it { should satisfy { |u| u.singleton_class.include? Rolify::Dynamic } }
-      its("adapter.class") { should be(Rolify::Adapter::RoleAdapter) }
+      it { expect(subject.adapter).to be_a(Rolify::Adapter::RoleAdapter) }
     end
 
     context "on the Forum class" do
@@ -186,7 +186,7 @@ describe Rolify do
 
       subject { Forum }
       it { should satisfy { |u| u.include? Rolify::Resource }}
-      its("resource_adapter.class") { should be(Rolify::Adapter::ResourceAdapter) }
+      it { expect(subject.resource_adapter).to be_a(Rolify::Adapter::ResourceAdapter) }
     end
   end
 end

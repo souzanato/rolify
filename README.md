@@ -1,4 +1,4 @@
-# rolify [![Gem Version](https://badge.fury.io/rb/rolify.svg)](http://badge.fury.io/rb/rolify) [![build status](https://travis-ci.org/RolifyCommunity/rolify.svg)](http://travis-ci.org/RolifyCommunity/rolify) [![Code Climate](https://codeclimate.com/github/RolifyCommunity/rolify.svg)](https://codeclimate.com/github/RolifyCommunity/rolify) [![Coverage Status](https://coveralls.io/repos/RolifyCommunity/rolify/badge.svg?branch=master&service=github)](https://coveralls.io/github/RolifyCommunity/rolify?branch=master)
+# rolify [![Gem Version](https://badge.fury.io/rb/rolify.svg)](http://badge.fury.io/rb/rolify)
 
 Very simple Roles library without any authorization enforcement supporting scope on resource object.
 
@@ -15,10 +15,23 @@ This library can be easily integrated with any authentication gem ([devise](http
 
 ## Requirements
 
-* Rails >= 4.2
-* ActiveRecord >= 4.2 <b>or</b> Mongoid >= 4.0
-* supports ruby 2.2+, JRuby 1.6.0+ (in 1.9 mode) and Rubinius 2.0.0dev (in 1.9 mode)
-* support of ruby 1.8 has been dropped due to Mongoid >=3.0 that only supports 1.9 new hash syntax
+* Ruby >= 3.2
+* ActiveRecord >= 7.1 <b>or</b> Mongoid >= 9
+
+### Supported versions
+
+Every release in the matrix below is exercised on CI. ActiveRecord is the
+supported default; Mongoid is best effort, kept working and tested against the
+current release rather than against a range.
+
+|                | 7.1 | 7.2 | 8.0 | 8.1 |
+| -------------- | --- | --- | --- | --- |
+| Ruby 3.2       |     |     |     | ✓   |
+| Ruby 3.3       |     |     |     | ✓   |
+| Ruby 3.4       | ✓   | ✓   | ✓   | ✓   |
+
+Older versions of Rolify supported Rails 4.2 through 6.1 and Mongoid 5 through
+7. Those are no longer installable on a supported Ruby; see CHANGELOG.rdoc.
 
 ## Installation
 
@@ -290,4 +303,7 @@ Please read the [upgrade instructions](UPGRADE.rdoc).
 
 If you have any issue or feature request with/for rolify, please create an new [issue on GitHub](https://github.com/RolifyCommunity/rolify/issues) **specifying the ruby runtime, rails and rolify versions you're using and the gems listed in your Gemfile**, or fork the project and send a pull request.
 
-To get the specs running you should call `bundle` and then `rake`. See the spec/README for more information.
+To get the specs running you should call `bundle` and then `bundle exec rake`, which runs
+the suite against the default ActiveRecord version. `bundle exec rake appraisal` runs the
+whole support matrix; a MongoDB server is needed for the Mongoid appraisal. See the
+spec/README for more information.

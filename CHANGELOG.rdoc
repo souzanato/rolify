@@ -1,3 +1,102 @@
+== 7.0.0
+
+Modernization release: Ruby 3.4, Rails 8.1 / ActiveRecord 8.1, and a data
+integrity fix on the role table. The public API is unchanged - <tt>add_role</tt>,
+<tt>has_role?</tt>, <tt>with_role</tt>, the scopes, global/class/instance role
+scoping and dynamic shortcuts all keep working as before.
+
+Breaking changes:
+
+* Dropped Ruby < 3.2. Ruby 3.2, 3.3 and 3.4 are supported.
+* Dropped ActiveRecord < 7.1 (Rails 4.2 through 6.1). The supported range is
+  now 7.1, 7.2, 8.0 and 8.1.
+* Dropped Mongoid 5, 6 and 7. Mongoid 9 is the supported release; see
+  <b>Mongoid</b> below.
+* Dynamic shortcuts are no longer defined for role names that cannot be written
+  as a Ruby method name (spaces, hyphens, punctuation, non-ASCII). Such roles
+  were never reachable through <tt>is_foo?</tt> anyway, since the dispatch
+  pattern only ever matched word characters; they remain available through
+  <tt>add_role</tt>/<tt>has_role?</tt>.
+* The generated migration now creates unique indexes. Existing applications
+  are unaffected until they add them (see UPGRADE.rdoc), but new installs get
+  stricter tables.
+
+Data integrity:
+
+* The ActiveRecord migration generator now creates one partial unique index per
+  scope level - <tt>UNIQUE(name)</tt> for global roles,
+  <tt>UNIQUE(name, resource_type)</tt> for class scoped roles, and
+  <tt>UNIQUE(name, resource_type, resource_id)</tt> for instance scoped roles -
+  plus a unique index on the join table's <tt>(user_id, role_id)</tt>. Duplicate
+  roles are rejected by the database rather than relying on the guards in
+  <tt>add_role</tt>, at every level.
+* The previous single index over all three columns covered only instance scoped
+  roles: a database treats NULLs as distinct in a unique index, so two
+  concurrent creations of the same global or class scoped role could both
+  succeed. See UPGRADE.rdoc, which explains how to find pre-existing duplicates
+  before adding the new indexes.
+* PostgreSQL and SQLite support partial indexes. On adapters that do not
+  (MySQL, MariaDB) the generator keeps the single composite index, which covers
+  instance scoped roles only; those adapters cannot enforce the other two levels
+  in the database.
+* <tt>find_or_create_by</tt> used <tt>first_or_create</tt>, which SELECTs and then
+  INSERTs and so loses the race when two processes add the same role at the same
+  time. It now falls back to <tt>create_or_find_by</tt>, which inserts inside a
+  savepoint and returns the row that won. This works with the partial indexes:
+  the attributes passed to it always name exactly one scope level.
+
+Security:
+
+* <tt>RoleAdapter#remove</tt> no longer calls <tt>send</tt> with a method name
+  derived from a class name; it uses <tt>public_send</tt>.
+* The dynamic shortcut dispatch patterns are anchored with <tt>\A..\z</tt>
+  rather than <tt>^..$</tt>, and the role name is read from a capture instead of
+  the <tt>$1</tt> global.
+* <tt>respond_to_missing?</tt> is now defined. <tt>respond_to?</tt> keeps its
+  existing behaviour: a shortcut that was already defined stays defined after
+  its last role is removed, but stops being advertised.
+
+Dependencies:
+
+* Dropped coveralls and codeclimate-test-reporter, both unmaintained and
+  reporting to external services. Coverage is collected locally with simplecov.
+* Dropped <tt>its</tt>, <tt>database_cleaner</tt>, and the bundler <tt>~> 2.0</tt>,
+  <tt>rake ~> 12.3</tt> and <tt>rspec-rails ~> 3.8</tt> pins.
+* Added bundler-audit, and Dependabot for both Bundler and GitHub Actions.
+
+CI:
+
+* The matrix is Ruby 3.2/3.3/3.4 against ActiveRecord 7.1/7.2/8.0/8.1, and the
+  jobs no longer set <tt>continue-on-error</tt>, so failures fail the build.
+* A job regenerates the appraisal gemfiles and fails if the checked-in ones
+  differ.
+* bundler-audit runs on push, on pull requests, and weekly.
+
+Tests:
+
+* The root Gemfile could not run the suite at all - it had no
+  <tt>activerecord</tt> or <tt>sqlite3</tt> - so tests only ran through the
+  appraisal gemfiles. It now carries a default ActiveRecord 8.1 runtime.
+* Added coverage for the dynamic shortcut edge cases, for the role scoping
+  contract on a single user, and for database-level uniqueness.
+
+Mongoid:
+
+* Mongoid 9 support was restored. It had not been running: the workflow set
+  <tt>continue-on-error</tt> and its appraisal could not be installed. Two
+  incompatibilities were fixed - <tt>belongs_to :resource</tt> is required by
+  default since Mongoid 8, and <tt>not_in</tt> no longer coerces documents to
+  their <tt>_id</tt>.
+* Mongoid remains best effort: the adapter is exercised on CI against the
+  current release, but only ActiveRecord is part of the supported matrix.
+
+Internal:
+
+* Fixed <tt>rails g rolify Role User --orm=active_record</tt>, which silently
+  failed to inject <tt>rolify</tt> into the user model because the option
+  arrives as a String from Thor but as a Symbol from Rails' configuration.
+* Removed a Thor deprecation warning when declaring the <tt>--orm</tt> option.
+
 == 6.0.1
 
 * Fix with_role with :any resource

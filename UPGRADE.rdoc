@@ -1,5 +1,111 @@
 = Upgrade instructions for Rolify library
 
+== From rolify 6.x to 7.x
+
+=== Requirements
+
+Rolify 7 requires Ruby 3.2 or newer, and ActiveRecord 7.1 or newer (or
+Mongoid 9). No public API changed, so an application that already runs on those
+versions needs no code change.
+
+=== Adding the unique indexes (ActiveRecord)
+
+A role is identified by its name at one of three levels, and the migration
+generator now creates one partial unique index per level:
+
+    global     UNIQUE(name)                          WHERE resource_type IS NULL     AND resource_id IS NULL
+    class      UNIQUE(name, resource_type)           WHERE resource_type IS NOT NULL AND resource_id IS NULL
+    instance   UNIQUE(name, resource_type, resource_id)                              WHERE resource_id IS NOT NULL
+
+plus <tt>UNIQUE(user_id, role_id)</tt> on the join table. The old single index
+over all three columns did not cover the global and class scoped levels,
+because a database treats NULLs as distinct in a unique index, so two
+concurrent creations of the same global or class scoped role could both
+succeed.
+
++You do not have to add these indexes.+ They only make the database enforce
+what Rolify already does. But an existing installation may well contain
+duplicates that the old index allowed, and those have to be dealt with before
+the indexes can be created. Rolify cannot decide for you which row to keep, so
+no migration is provided.
+
+==== 1. Find the duplicates
+
+    # global
+    Role.where(:resource_type => nil, :resource_id => nil)
+        .group(:name).having("COUNT(*) > 1").count
+
+    # class scoped
+    Role.where(:resource_id => nil).where.not(:resource_type => nil)
+        .group(:name, :resource_type).having("COUNT(*) > 1").count
+
+    # instance scoped: the old index already prevented these, but check anyway
+    Role.where.not(:resource_id => nil)
+        .group(:name, :resource_type, :resource_id).having("COUNT(*) > 1").count
+
+==== 2. Merge them
+
+Which row survives, and whether a user should end up holding the merged role,
+is a business decision. What matters technically:
+
+* role assignments live in the join table, so a merged role has to keep the
+  assignments of the rows it replaces;
+* the join table has a unique <tt>(user_id, role_id)</tt>, so if a user holds two
+  of the duplicate roles, one of those two assignment rows has to go before the
+  second can point at the surviving role.
+
+Do that in a data migration you write and review, not in the schema migration
+below.
+
+==== 3. Create the indexes
+
+Only PostgreSQL and SQLite support partial indexes. On any other adapter the
+generator falls back to the old single composite unique index, which only
+covers instance scoped roles; skip to the note at the end.
+
+    class AddRoleScopeUniqueness < ActiveRecord::Migration[8.1]
+      # Replace :roles / :users_roles if you renamed the role class or the join
+      # table, and remove the old index first (it has the same columns as the
+      # instance scoped one below).
+      def change
+        remove_index :roles, [ :name, :resource_type, :resource_id ]
+        add_index :roles, :name
+
+        add_index :roles, [ :name ],
+                  :unique => true,
+                  :where => "resource_type IS NULL AND resource_id IS NULL",
+                  :name => "index_roles_global"
+
+        add_index :roles, [ :name, :resource_type ],
+                  :unique => true,
+                  :where => "resource_type IS NOT NULL AND resource_id IS NULL",
+                  :name => "index_roles_class_scoped"
+
+        add_index :roles, [ :name, :resource_type, :resource_id ],
+                  :unique => true,
+                  :where => "resource_id IS NOT NULL",
+                  :name => "index_roles_instance_scoped"
+
+        remove_index :users_roles, [ :user_id, :role_id ]
+        add_index :users_roles, [ :user_id, :role_id ], :unique => true
+      end
+    end
+
+Add the indexes under new names rather than reusing
+<tt>index_roles_on_name_and_resource_type_and_resource_id</tt>, so the old index
+can be dropped independently.
+
+==== MySQL and MariaDB
+
+These adapters have no partial indexes, so the three levels cannot be enforced
+separately in the database. The generated migration uses
+<tt>UNIQUE(name, resource_type, resource_id)</tt>, which covers instance scoped
+roles only. Global and class scoped roles continue to rely on Rolify's
+<tt>find_or_create_by</tt>, so concurrent creation of one of those can leave
+duplicates. Add <tt>validates :name, :uniqueness => { :scope => [...] }</tt> to
+your Role model if you need a stronger guarantee, accepting that a validation is
+still subject to a race.
+
 == From a previous rolify installation (1.x or 2.x)
 
 The easiest way is to re-run the generator using <tt>rails g Rolify:Role</tt> command, and overwrite the initializer file. Both the migration file and the <tt>role.rb</tt> haven't changed.

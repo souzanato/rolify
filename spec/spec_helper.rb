@@ -1,18 +1,12 @@
-require 'coveralls'
-Coveralls.wear_merged!
-
 require 'rubygems'
 require "bundler/setup"
+
+require_relative 'support/coverage'
 
 require 'rolify'
 require 'rolify/matchers'
 require "logger"
 require 'rails'
-begin
-  require 'its'
-rescue LoadError
-end
-require 'database_cleaner'
 
 ENV['ADAPTER'] ||= 'active_record'
 
@@ -47,14 +41,4 @@ end
 
 RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = [:should, :expect] }
-
-  config.before(:suite) do
-    DatabaseCleaner.strategy = :truncation
-    DatabaseCleaner.start
-  end
-
-  config.after(:suite) do |example|
-    DatabaseCleaner.clean
-  end
-
 end

@@ -1,6 +1,16 @@
 version: 2
 updates:
+  - package-ecosystem: "bundler"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    # The gemfiles under gemfiles/ are generated from Appraisals by Appraisal
+    # and are checked in, so they are deliberately not separate dependabot
+    # directories: bump the version in Appraisals and regenerate instead.
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5

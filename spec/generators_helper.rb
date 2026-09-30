@@ -1,6 +1,8 @@
 require 'rubygems'
 require "bundler/setup"
 
+require_relative 'support/coverage'
+
 require 'pry'
 
 require 'rolify'
@@ -9,9 +11,6 @@ require 'logger'
 require 'rails/all'
 require_relative 'support/stream_helpers'
 include StreamHelpers
-
-require 'coveralls'
-Coveralls.wear_merged!
 
 require 'common_helper'
 
